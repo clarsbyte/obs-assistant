@@ -1,0 +1,9 @@
+*/__pycache__
+env/
+/env/
+env
+node_modules/
+electron/dist/
+electron/py/
+build/
+*.exe

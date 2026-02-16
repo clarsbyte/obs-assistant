@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OBS Assistant</title>
+  <style>
+    /* ── Fonts (Geist Mono) ───────────────────────── */
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("node_modules/geist/dist/fonts/geist-mono/GeistMono-Italic[wght].woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: italic;
+      font-display: swap;
+    }
+
+    /* ── Reset & Base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0d10;
+      --panel: #0f131a;
+      --panel2: #0c1118;
+      --border: #1f2a37;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --muted2: #9da7b3;
+      --accent: #7ee787;   /* green */
+      --user: #a371f7;     /* purple */
+      --radius: 12px;
+      --shadow: 0 18px 55px rgba(0,0,0,0.45);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    /* ── Layout ───────────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: rgba(15, 19, 26, 0.82);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      -webkit-app-region: drag;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .title {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(12, 17, 24, 0.7);
+      -webkit-app-region: no-drag;
+      user-select: none;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(126, 231, 135, 0.08);
+    }
+
+    /* ── Messages Area ────────────────────────────── */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background:
+        radial-gradient(1200px 800px at 0% 0%, rgba(163, 113, 247, 0.08), transparent 55%),
+        radial-gradient(900px 650px at 100% 100%, rgba(126, 231, 135, 0.07), transparent 55%),
+        var(--bg);
+    }
+
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+    .message {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15, 19, 26, 0.7);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
+      font-size: 12.5px;
+      line-height: 1.6;
+      word-wrap: break-word;
+      animation: fadeIn 0.2s ease;
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 12px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      border-left: 3px solid var(--user);
+    }
+
+    .message.bot {
+      border-left: 3px solid var(--accent);
+    }
+
+    .prefix {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      padding-top: 2px;
+      user-select: none;
+    }
+
+    .message.user .prefix { color: rgba(163, 113, 247, 0.95); }
+    .message.bot .prefix { color: rgba(126, 231, 135, 0.95); }
+
+    .content {
+      white-space: pre-wrap;
+    }
+
+    /* typing */
+    .typing-indicator {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px 0;
+      align-items: center;
+    }
+    .typing-indicator span {
+      width: 6px; height: 6px;
+      background: rgba(230, 237, 243, 0.45);
+      border-radius: 50%;
+      animation: blink 1.4s infinite both;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.3; }
+      40% { opacity: 1; }
+    }
+
+    /* ── Welcome ──────────────────────────────────── */
+    .welcome {
+      text-align: center;
+      margin: auto;
+      padding: 24px 18px;
+      border: 1px dashed rgba(255,255,255,0.12);
+      border-radius: 16px;
+      background: rgba(15, 19, 26, 0.55);
+    }
+
+    .welcome h2 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .welcome p {
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 320px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Input Area ───────────────────────────────── */
+    .input-area {
+      padding: 12px 14px;
+      background: rgba(15, 19, 26, 0.86);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+    }
+
+    .input-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      background: rgba(12, 17, 24, 0.8);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 10px 10px 10px 12px;
+      transition: border-color 0.15s;
+    }
+
+    .input-row:focus-within {
+      border-color: rgba(126, 231, 135, 0.7);
+      box-shadow: 0 0 0 4px rgba(126, 231, 135, 0.08);
+    }
+
+    .prompt {
+      color: rgba(230, 237, 243, 0.55);
+      font-size: 13px;
+      padding: 2px 0 3px 0;
+      user-select: none;
+    }
+
+    .input-row textarea {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      line-height: 1.55;
+      resize: none;
+      padding: 0;
+      min-height: 22px;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+
+    .input-row textarea::placeholder {
+      color: rgba(230, 237, 243, 0.35);
+    }
+
+    .send-btn {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      color: rgba(230, 237, 243, 0.9);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, border-color 0.15s, transform 0.05s;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+
+    .send-btn:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(126, 231, 135, 0.35);
+    }
+
+    .send-btn:active { transform: translateY(1px); }
+
+    .send-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .send-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .kbd-hint {
+      font-size: 10px;
+      color: rgba(230, 237, 243, 0.45);
+      user-select: none;
+    }
+
+    /* ── Mic Button ──────────────────────────────── */
+    .mic-btn {
+      height: 34px;
+      width: 34px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      color: rgba(230, 237, 243, 0.7);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+
+    .mic-btn:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(163, 113, 247, 0.4);
+      color: rgba(230, 237, 243, 0.95);
+    }
+
+    .mic-btn.listening {
+      background: rgba(126, 231, 135, 0.15);
+      border-color: rgba(126, 231, 135, 0.6);
+      color: #7ee787;
+      animation: pulse-mic 2s ease infinite;
+    }
+
+    @keyframes pulse-mic {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(126, 231, 135, 0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(126, 231, 135, 0); }
+    }
+
+    .mic-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── Settings Button (header) ────────────────── */
+    .settings-btn {
+      height: 30px;
+      width: 30px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.3s;
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+    }
+
+    .settings-btn:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(126, 231, 135, 0.35);
+      color: var(--text);
+    }
+
+    .settings-btn.open {
+      color: var(--accent);
+      transform: rotate(90deg);
+    }
+
+    .settings-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    /* ── Settings Panel ──────────────────────────── */
+    .settings-panel {
+      max-height: 0;
+      overflow: hidden;
+      background: rgba(12, 17, 24, 0.95);
+      border-bottom: 1px solid transparent;
+      transition: max-height 0.3s ease, padding 0.3s ease, border-color 0.3s ease;
+      padding: 0 14px;
+    }
+
+    .settings-panel.open {
+      max-height: 220px;
+      padding: 14px;
+      border-bottom-color: var(--border);
+    }
+
+    .settings-panel-title {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .settings-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-row label {
+      font-size: 11px;
+      color: var(--muted2);
+      width: 72px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .settings-row input {
+      flex: 1;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .settings-row input:focus {
+      border-color: rgba(126, 231, 135, 0.5);
+    }
+
+    .settings-row input::placeholder {
+      color: rgba(230, 237, 243, 0.3);
+    }
+
+    .obs-connect-btn {
+      height: 32px;
+      padding: 0 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(126, 231, 135, 0.10);
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .obs-connect-btn:hover {
+      background: rgba(126, 231, 135, 0.18);
+      border-color: rgba(126, 231, 135, 0.4);
+    }
+
+    .obs-connect-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .obs-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .obs-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .obs-status-label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="title">OBS Assistant</div>
+      </div>
+      <div class="header-right">
+        <div class="status" id="connStatus" title="Connecting to backend…">
+          <div class="dot" id="connDot" style="background: #f0883e;"></div>
+          <span id="connLabel">connecting</span>
+        </div>
+        <button class="settings-btn" id="settingsBtn" title="OBS Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- OBS Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-panel-title">OBS WebSocket</div>
+      <div class="settings-row">
+        <label for="obsPort">Port</label>
+        <input type="number" id="obsPort" value="4455" placeholder="4455" min="1" max="65535" />
+      </div>
+      <div class="settings-row">
+        <label for="obsPassword">Password</label>
+        <input type="password" id="obsPassword" placeholder="Server password" />
+      </div>
+      <div class="settings-row">
+        <label></label>
+        <button class="obs-connect-btn" id="obsConnectBtn">Connect</button>
+        <div class="obs-status">
+          <div class="obs-status-dot" id="obsDot" style="background: var(--muted);"></div>
+          <span class="obs-status-label" id="obsStatusLabel">not connected</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div class="messages" id="messages">
+      <div class="welcome">
+        <h2>Ready.</h2>
+        <p>Enter to send. Shift+Enter for newline.</p>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-row">
+        <button class="mic-btn" id="micBtn" title="Click to record voice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+        <div class="prompt">&gt;</div>
+        <textarea
+          id="messageInput"
+          placeholder="Type a command…"
+          rows="1"
+          autofocus
+        ></textarea>
+        <button class="send-btn" id="sendBtn" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <span class="kbd-hint">enter</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
+
