@@ -25,7 +25,7 @@ Leave this terminal open. The model needs to be running for the assistant to wor
 
 **Step 2 — Launch OBS Assistant**
 
-Launch the `obs-assistant Setup 1.0.0.exe` . It will connect to OBS via WebSocket — make sure OBS is running with the WebSocket server enabled:
+Download `obs-assistant Setup 1.0.0.exe` from the [Releases](https://github.com/clarsbyte/obs-assistant/releases) page and install it. It will connect to OBS via WebSocket — make sure OBS is running with the WebSocket server enabled:
 
 > OBS → Tools → WebSocket Server Settings → ✅ Enable WebSocket server
 
